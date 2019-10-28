@@ -14,6 +14,7 @@ setup(
     classifiers=[],
     install_requires=[
         'Click',
+        'pynacl'
     ],
     entry_points={
         'console_scripts':

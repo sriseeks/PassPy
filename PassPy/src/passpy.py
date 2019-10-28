@@ -1,30 +1,23 @@
 """
-My First Python Project
+foo==bar
 """
 
+import logging
 import os
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer
-import nacl
-import pyperclip
 from pathlib import Path
-from nacl import secret
+
 import click
 
-def create_engine(path=None):
-    path = Path(f'{os.getenv("HOME")}/.passpy')
-    path.mkdir(exist_ok=True)
-    return create_engine(f'sqlite:///{path}/passpy.config', echo=False)
+from .runnable import Runnable as driver
+
+logger = logging.getLogger(__name__)
+_DEBUG_FLAG = True
 
 
-def create_passpy(path):
-    engine = create_engine(path)
-    metadata = MetaData(engine)
-    master_table = Table('passpy', metadata,
-                         Column('id', Integer, primary_key=True, autoincrement=True),
-                         Column('program', String),
-                         Column('username', String),
-                         Column('hash', String))
-    metadata.create_all()
+@click.group()
+@click.pass_context
+def passpy():
+    pass
 
 
 def create_master(password):
@@ -48,19 +41,44 @@ def delete():
     pass
 
 
-def _encrypt_text():
+@passpy.command()
+@click.option('-p', '--path', default=Path(os.path.join(os.getenv("HOME"), '.passpy')),
+              help='Path for a new PassPy Database')
+def new(path):
+    """Create a new PassPy configuration"""
+    if path != Path(os.path.join(os.getenv("HOME"), '.passpy')):
+        raise NotImplementedError("Custom PassPy config path is not yet implemented")
+    master_password = click.prompt('Enter master-password', hide_input=True, confirmation_prompt=True)
+    driver().create_passpy(master_password)
+    click.echo('New PassPy Database created. Please keep your master password in a secure location')
+
+
+@passpy.command()
+def add():
+    click.echo("Adding new PassPy entry...")
+    program = click.prompt('Program name')
+    username = click.prompt('Enter username')
+    password = click.prompt('Enter password', hide_input=True, confirmation_prompt=True)
+    driver().add_creds(program, username, password)
+    click.echo('Your credentials are secured in PassPy')
+
+
+@passpy.command()
+def update():
+    click.echo("Updating PassPy entry...")
+    program = click.prompt('Program name')
+    username = click.prompt('Enter username')
+    password = click.prompt('Enter password', hide_input=True, confirmation_prompt=True)
+    driver().update_creds(program, username, password)
+    click.echo('Your credentials are secured in PassPy')
+
+
+@passpy.command()
+def delete():
     pass
 
-@click.command()
-def passpy(master_password):
-    if master_password:
-        create_master(master_password)
 
-# @click.option('-n', '--new', default=os.getenv("HOME"), help='Create a new PassPy database')
-# @click.option('-a', '--add', help='Add new credentials to PassPy', prompt=True, multiple=True)
-# @click.option('--master-password', prompt=True, hide_input=True, confirmation_prompt=True)
+cli = click.CommandCollection(sources=[passpy])
 
-
-@click.command()
-def cli():
-    pass
+if __name__ == '__main__':
+    cli(obj={})
