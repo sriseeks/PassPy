@@ -63,21 +63,39 @@ class Runnable(object):
         exists = self.__check_creds(program, username)
         if exists:
             ins = self.table.update() \
-                .where(self.table.username == username, self.table.program == program) \
+                .where(and_(self.table.c.username == username, self.table.c.program == program)) \
                 .values({'hash': self._encrypt_text(password, password)})
             self.engine.execute(ins)
         else:
             raise click.ClickException(f'Username {username} for this Program {program} does not exist, '
                                        'Did you mean to add a new credential?')
 
-    def __create_secret(self, master_password):
+    def delete_creds(self, program, username):
+        pass
+
+    def validate_master(self, master_password):
+        query = select([self.table.c.hash],
+                       and_(self.table.c.username == 'passpy', self.table.c.program == 'master'))
+        res = self.engine.execute(query)
+        try:
+            if res and self._decrypt_text(res.fetchall()[0][0], master_password) == master_password.encode():
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    @staticmethod
+    def __create_secret(master_password):
         key = master_password.ljust(32, 'x').encode()
         box = secret.SecretBox(key)
         return box
 
-    def _encrypt_text(self, x, key):
+    def _encrypt_text(self, s, key):
         box = self.__create_secret(key)
-        return box.encrypt(x.encode())
+        return box.encrypt(s.encode())
 
     def _decrypt_text(self, s, key):
-        pass
+        box = self.__create_secret(key)
+        return box.decrypt(s)
+
