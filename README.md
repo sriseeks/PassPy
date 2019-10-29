@@ -10,4 +10,4 @@ Pip install on your virtual env or conda env
 
 ```
 $ cd ./PassPy
-$ pip install . ```
+$ pip install . 
