@@ -132,7 +132,6 @@ def get():
         click.echo("Wrong credentials, Please try again")
 
 
-
 cli = click.CommandCollection(sources=[passpy])
 
 if __name__ == '__main__':
