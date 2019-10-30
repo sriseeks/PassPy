@@ -4,9 +4,12 @@ foo==bar
 
 import logging
 import os
+import time
 from pathlib import Path
 
 import click
+import pyperclip
+from tqdm import tqdm
 
 from .runnable import Runnable as driver
 
@@ -34,12 +37,20 @@ def new(path):
 
 @passpy.command()
 def add():
-    click.echo("Adding new PassPy entry...")
-    program = click.prompt('Program name')
-    username = click.prompt('Enter username')
-    password = click.prompt('Enter password', hide_input=True, confirmation_prompt=True)
-    driver().add_creds(program, username, password)
-    click.echo('Your credentials are secured in PassPy')
+    """Add new credential to PassPy"""
+    click.echo("Updating PassPy Master Password...")
+    master = click.prompt("For security purpose please enter the master password", hide_input=True,
+                          confirmation_prompt=False)
+    result = driver().validate_master(master)
+    if result:
+        click.echo("Adding new PassPy entry...")
+        program = click.prompt('Program name')
+        username = click.prompt('Enter username')
+        password = click.prompt('Enter password', hide_input=True, confirmation_prompt=True)
+        driver().add_creds(program, username, password, master)
+        click.echo('Your credentials are secured in PassPy')
+    else:
+        click.echo("Wrong credentials, Please try again")
 
 
 def _update_master():
@@ -58,13 +69,13 @@ def _update_master():
 def update_creds():
     click.echo("Updating PassPy entry...")
     master = click.prompt("For security purpose please enter the master password", hide_input=True,
-                          confirmation_prompt=True)
+                          confirmation_prompt=False)
     result = driver().validate_master(master)
     if result:
         program = click.prompt('Program name')
         username = click.prompt('Enter username')
         password = click.prompt('Enter password', hide_input=True, confirmation_prompt=True)
-        driver().update_creds(program, username, password)
+        driver().update_creds(program, username, password, master)
         click.echo('Your credentials are securely updated in PassPy')
     else:
         click.echo("Wrong credentials, Please try again")
@@ -73,6 +84,7 @@ def update_creds():
 @passpy.command()
 @click.option('-m', '--master', help='Flag to update master password', is_flag=True, required=False)
 def update(master=None):
+    """Update existing credentials"""
     if master:
         _update_master()
     else:
@@ -81,8 +93,8 @@ def update(master=None):
 
 @passpy.command()
 def remove():
+    """Delete PassPy Credentials"""
     click.echo("Deleting PassPy entry...")
-    click.echo("For security purpose, please enter master password...")
     master = click.prompt("For security purpose please enter the master password", hide_input=True,
                           confirmation_prompt=True)
     result = driver().validate_master(master)
@@ -90,9 +102,35 @@ def remove():
         program = click.prompt('Program name')
         username = click.prompt('Enter username')
         driver().delete_creds(program, username)
-        click.echo('Your credentials are securely updated in PassPy')
+        click.echo('Your credentials are removed from PassPy')
     else:
         click.echo("Wrong credentials, Please try again")
+
+
+@passpy.command()
+def get():
+    """Get an existing credential from PassPy"""
+    master = click.prompt("For security purpose please enter the master password", hide_input=True,
+                          confirmation_prompt=False)
+    result = driver().validate_master(master)
+    if result:
+        program = click.prompt('Program name')
+        res = driver().get_creds(program, master)
+        if res:
+            username, password = res
+            pyperclip.copy(username)
+            for _ in tqdm(range(1, 15), desc='Username copied to clipboard. Expires in ..', ncols=100,
+                          bar_format='{l_bar}{bar}'): time.sleep(1)
+            pyperclip.copy('')
+            pyperclip.copy(password)
+            for _ in tqdm(range(1, 15), desc='Password copied to clipboard. Expires in ..', ncols=100,
+                          bar_format='{l_bar}{bar}'): time.sleep(1)
+            pyperclip.copy('')
+        else:
+            click.echo('The program is unavailable. Please try again. To add a new credential, run passpy add')
+    else:
+        click.echo("Wrong credentials, Please try again")
+
 
 
 cli = click.CommandCollection(sources=[passpy])

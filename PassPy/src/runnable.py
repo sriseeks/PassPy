@@ -43,11 +43,11 @@ class Runnable(object):
             raise click.ClickException('Master Password already present, '
                                        'To replace, run the update command with --master-password flag')
 
-    def add_creds(self, program, username, password):
+    def add_creds(self, program, username, password, master):
         try:
             ins = self.table.insert({'program': program,
                                      'username': username,
-                                     'hash': self._encrypt_text(password, password)})
+                                     'hash': self._encrypt_text(password, master)})
             self.engine.execute(ins)
         except IntegrityError:
             raise click.ClickException(f'Username {username} for this Program {program} already exists, '
@@ -59,19 +59,20 @@ class Runnable(object):
         res = self.engine.execute(query)
         return res.fetchall()
 
-    def update_creds(self, program, username, password):
+    def update_creds(self, program, username, password, master):
         exists = self.__check_creds(program, username)
         if exists:
             ins = self.table.update() \
                 .where(and_(self.table.c.username == username, self.table.c.program == program)) \
-                .values({'hash': self._encrypt_text(password, password)})
+                .values({'hash': self._encrypt_text(password, master)})
             self.engine.execute(ins)
         else:
             raise click.ClickException(f'Username {username} for this Program {program} does not exist, '
                                        'Did you mean to add a new credential?')
 
     def delete_creds(self, program, username):
-        pass
+        query = self.table.delete().where(and_(self.table.c.program==program, self.table.c.username==username))
+        self.engine.execute(query)
 
     def validate_master(self, master_password):
         query = select([self.table.c.hash],
@@ -80,6 +81,20 @@ class Runnable(object):
         try:
             if res and self._decrypt_text(res.fetchall()[0][0], master_password) == master_password.encode():
                 return True
+            else:
+                return False
+        except:
+            return False
+
+    def get_creds(self, program, master):
+        query = select([self.table.c.username, self.table.c.hash], self.table.c.program == program)
+        res = self.engine.execute(query)
+        try:
+            if res:
+                creds = res.fetchall()
+                username = creds[0][0]
+                password = self._decrypt_text(creds[0][1], master).decode()
+                return username, password
             else:
                 return False
         except:

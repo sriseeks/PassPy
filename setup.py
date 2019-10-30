@@ -14,7 +14,9 @@ setup(
     classifiers=[],
     install_requires=[
         'Click',
-        'pynacl'
+        'pynacl',
+        'pyperclip',
+        'tqdm'
     ],
     entry_points={
         'console_scripts':
