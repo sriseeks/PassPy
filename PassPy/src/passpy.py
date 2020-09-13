@@ -1,7 +1,3 @@
-"""
-foo==bar
-"""
-
 import logging
 import os
 import time
@@ -38,7 +34,7 @@ def new(path):
 @passpy.command()
 def add():
     """Add new credential to PassPy"""
-    click.echo("Updating PassPy Master Password...")
+    # TODO: add check to verify if master password exists
     master = click.prompt("For security purpose please enter the master password", hide_input=True,
                           confirmation_prompt=False)
     result = driver().validate_master(master)
@@ -56,11 +52,11 @@ def add():
 def _update_master():
     click.echo("Updating PassPy Master Password...")
     master = click.prompt("For security purpose please enter the master password", hide_input=True,
-                          confirmation_prompt=True)
+                          confirmation_prompt=False)
     result = driver().validate_master(master)
     if result:
         master = click.prompt('Enter new Master Password', hide_input=True, confirmation_prompt=True)
-        driver().update_creds(program='master', username='passpy', password=master)
+        driver().update_creds(program='master', username='passpy', password=master, master=master, is_master=True)
         click.echo('Successfully updated Master Password')
     else:
         click.echo("Wrong credentials, Please try again")
@@ -96,7 +92,7 @@ def remove():
     """Delete PassPy Credentials"""
     click.echo("Deleting PassPy entry...")
     master = click.prompt("For security purpose please enter the master password", hide_input=True,
-                          confirmation_prompt=True)
+                          confirmation_prompt=False)
     result = driver().validate_master(master)
     if result:
         program = click.prompt('Program name')
@@ -108,7 +104,8 @@ def remove():
 
 
 @passpy.command()
-def get():
+@click.option('-p', '--password-only', help='Password Only?', is_flag=True, required=False)
+def get(password_only=False):
     """Get an existing credential from PassPy"""
     master = click.prompt("For security purpose please enter the master password", hide_input=True,
                           confirmation_prompt=False)
@@ -118,16 +115,33 @@ def get():
         res = driver().get_creds(program, master)
         if res:
             username, password = res
-            pyperclip.copy(username)
-            for _ in tqdm(range(1, 15), desc='Username copied to clipboard. Expires in ..', ncols=100,
-                          bar_format='{l_bar}{bar}'): time.sleep(1)
-            pyperclip.copy('')
+            if not password_only:
+                pyperclip.copy(username)
+                for _ in tqdm(range(1, 15), desc='Username copied to clipboard. Expires in ..', ncols=100,
+                              bar_format='{l_bar}{bar}'): time.sleep(1)
+                pyperclip.copy('')
             pyperclip.copy(password)
             for _ in tqdm(range(1, 15), desc='Password copied to clipboard. Expires in ..', ncols=100,
-                          bar_format='{l_bar}{bar}'): time.sleep(1)
+                          bar_format='{l_bar}{bar}'):
+                time.sleep(1)
             pyperclip.copy('')
         else:
             click.echo('The program is unavailable. Please try again. To add a new credential, run passpy add')
+    else:
+        click.echo("Wrong credentials, Please try again")
+
+
+@passpy.command()
+def list():
+    """Get an existing credential from PassPy"""
+    master = click.prompt("For security purpose please enter the master password", hide_input=True,
+                          confirmation_prompt=False)
+    result = driver().validate_master(master)
+    if result:
+        res = driver().list_objects()
+        if len(res) > 0:
+            click.echo(f"Below's all the credential stored\n"
+                       f"{res}")
     else:
         click.echo("Wrong credentials, Please try again")
 

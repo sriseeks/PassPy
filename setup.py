@@ -16,6 +16,7 @@ setup(
         'Click',
         'pynacl',
         'pyperclip',
+        'pandas',
         'tqdm'
     ],
     entry_points={
